@@ -26,6 +26,8 @@ An organizer can
 * Register a new voter in the system.
 * Create a new poll.
 * Add voters to a given poll.
+* Get a list of voters owned by the organizer.
+* Get details about a given voter.
 * Get a list of polls organized by the organizer.
 * Get details for a given poll.
 * Get all votes for a given poll.
