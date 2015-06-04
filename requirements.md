@@ -33,6 +33,8 @@ An organizer can
 * Get all votes for a given poll.
 * Get details for a given vote.
 * Void a given vote.
+* Send an email to every voter in a given poll.
+
 
 #### Admin
 
@@ -41,7 +43,48 @@ An admin is identified by username and password.
 
 An admin can
 
-* Do a lot of stuff.
+* Create and delete organizers.
+* Create and delete other admins.
+* Assign or unassign roles to users.
+
+
+## Entities
+
+Here we list required entities and their attributes.
+
+#### User
+
+* List of roles.
+* Username.
+* Password.
+
+#### Voter
+
+* Organizer ID.
+* Organization name.
+* Stakeholder group.
+* List of contact persons.
+
+#### Contact Person
+
+* Voter ID.
+* Email address.
+
+#### Poll
+
+* Organizer ID.
+* List of voters.
+* Start datetime.
+* End datetime.
+* Options.
+* Min options selected.
+* Max options selected.
+
+#### Vote
+
+* Voting code.
+* Poll ID.
+* Options.
 
 
 ## Thoughts
