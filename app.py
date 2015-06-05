@@ -1,9 +1,11 @@
 #!flask/bin/python
 from flask import Flask, jsonify, request
+import auth
 
 app = Flask(__name__)
 
 @app.route('/')
+@auth.requires_admin
 def index():
     return "Hello, world!"
 
