@@ -51,33 +51,38 @@ An admin can
 
 Here we list required entities and their attributes.
 
+#### Role
+
+* Name
+
+#### User
+
+* Username
+* Password
+* Roles
+
 #### Member
 
-* Organizer ID.
-* Organization name.
-* Stakeholder group.
-* List of contact persons.
-
-#### Contact
-
-* Member ID.
-* Email address.
+* Organizer ID
+* Organization name
+* Stakeholder group
+* List of contact persons
 
 #### Poll
 
-* Organizer ID.
-* List of members.
-* Start datetime.
-* End datetime.
-* Options.
-* Min options selected.
-* Max options selected.
+* Organizer ID
+* List of members
+* Start datetime
+* End datetime
+* Options
+* Min options selected
+* Max options selected
 
 #### Vote
 
-* Voting code.
-* Poll ID.
-* Options.
+* Voting code
+* Poll ID
+* Options
 
 
 ## API Endpoints
