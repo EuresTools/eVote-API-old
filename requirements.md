@@ -133,8 +133,3 @@ Updates a member with the given id. Organizer or admin credentials required.
 `DELETE /members/:id`  
 Deletes a member with the given id. Organizer or admin credentials required.
 
-
-<!--## Thoughts-->
-
-<!--* If an organizer voids a vote the member should be notified and asked to-->
-  <!--confirm the invalidation.-->
