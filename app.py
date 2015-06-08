@@ -1,8 +1,12 @@
 #!flask/bin/python
 from flask import Flask, jsonify, request
+from flask.ext.sqlalchemy import SQLAlchemy
 import auth
 
 app = Flask(__name__)
+app.config.from_object('config')
+db = SQLAlchemy(app)
+from models import *
 
 @app.route('/')
 @auth.requires_admin
@@ -78,4 +82,5 @@ def memberById(memberId):
 
 
 if __name__ == '__main__':
+    db.create_all()
     app.run(debug=True)
