@@ -62,3 +62,15 @@ def requires_organizer(f):
             return forbidden_response()
         return f(*args, **kwargs)
     return decorated
+
+# Make sure the user is authenticated and is either an organizer or an admin.
+def requires_organizer_or_admin(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        auth = request.authorization
+        if not auth or not check_auth(auth.username, auth.password):
+            return authenticate_response()
+        elif not (is_organizer(auth.username) or is_admin(auth.username)):
+            return forbidden_response()
+        return f(*args, **kwargs)
+    return decorated
