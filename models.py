@@ -1,46 +1,33 @@
 from app import db
 from passlib.apps import custom_app_context as password_context
 
-# Relational table between users and roles.
-user_role = db.Table('user_role',
-        db.Column('user_id', db.Integer, db.ForeignKey('user.id')),
-        db.Column('role_id', db.Integer, db.ForeignKey('role.id'))
-)
-
-class Role(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(80), index=True, unique=True)
-
-    def __init__(self, name):
-        self.name = name
-
-    def __repr__(self):
-        return '<Role %r>' % (self.name)
-
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), index=True, unique=True)
     password_hash = db.Column(db.String(128))
-
-    roles = db.relationship('Role', secondary=user_role, backref=db.backref('users', lazy='dynamic'))
-    members = db.relationship('Member', backref='organizer', lazy='dynamic')
-    polls = db.relationship('Poll', backref='organizer', lazy='dynamic')
-
-    # Encrypt the password and assign it to the user.
-    def hash_password(self, password):
-        self.password_hash = password_context.encrypt(password)
+    is_admin = db.Column(db.Boolean, index=True, default=False)
 
     # Verify a plaintext password against the saved hash.
     # Returns True if the password matches, False otherwise.
     def verify_password(self, password):
         return password_context.verify(password, self.password_hash)
 
-    def __init__(self, username, password):
+    def __init__(self, username, password, is_admin):
         self.username = username
         self.password_hash = password_context.encrypt(password)
+        self.is_admin = is_admin
 
     def __repr__(self):
         return '<User %r>' % (self.username)
+
+class Organizer(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), index=True, unique=True)
+
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    user = db.relationship('User', backref='organizer', uselist=False)
+    members = db.relationship('Member', backref='organizer', lazy='dynamic')
+    polls = db.relationship('Poll', backref='organizer', lazy='dynamic')
 
 
 class Member(db.Model):
@@ -48,9 +35,10 @@ class Member(db.Model):
     name = db.Column(db.String(120), index=True, unique=True)
     group = db.Column(db.String(120), index=True)
 
-    organizer_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    organizer_id = db.Column(db.Integer, db.ForeignKey('organizer.id'))
     contacts = db.relationship('Contact', backref='organization')
     codes = db.relationship('Code', backref='member', lazy='dynamic')
+    votes = db.relationship('Vote', backref='member', lazy='dynamic')
 
     def __init__(self, name, group):
         self.name = name
@@ -82,9 +70,10 @@ class Poll(db.Model):
     select_min = db.Column(db.Integer)
     select_max = db.Column(db.Integer)
 
-    organizer_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    organizer_id = db.Column(db.Integer, db.ForeignKey('organizer.id'))
     options = db.relationship('Option', backref='poll')
-    codes = db.relationship('Code', backref='poll')
+    codes = db.relationship('Code', backref='poll', lazy='dynamic')
+    votes = db.relationship('Vote', backref='poll', lazy='dynamic')
 
     def __repr__(self):
         return '<Poll %r>' % (self.query)
@@ -116,3 +105,6 @@ class Vote(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     time = db.Column(db.DateTime)
     code_id = db.Column(db.Integer, db.ForeignKey('code.id'))
+    member_id = db.Column(db.Integer, db.ForeignKey('member.id'))
+    poll_id = db.Column(db.Integer, db.ForeignKey('poll.id'))
+
