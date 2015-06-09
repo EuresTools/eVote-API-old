@@ -1,21 +1,30 @@
 from functools import wraps
 from flask import request, jsonify, abort
+import models
 
-# TODO: Real implementation.
-
-# This is a dummy implementation of the authentication mechanism.
-usernames = ['user', 'organizer', 'admin']
 # Check if the username exists and that the password is valid.
 def check_auth(username, password):
-    return username in usernames and password == 'password'
+    user = models.User.query.filter_by(username=username).first()
+    if user == None:
+        return False
+    return user.verify_password(password)
 
 # Check if the given username belongs to an admin.
 def is_admin(username):
-    return username == 'admin'
+    user = models.User.query.filter_by(username=username).first()
+    if user == None:
+        return False
+    return user.is_admin
 
 # Check if the given username belongs to an organizer.
 def is_organizer(username):
-    return username == 'organizer'
+    user = models.User.query.filter_by(username=username).first()
+    if user == None:
+        return False
+    organizer = models.Organizer.query.filter_by(user=user).first()
+    if organizer == None:
+        return False
+    return True
 
 def authenticate_response():
     #abort(401)
@@ -74,3 +83,4 @@ def requires_organizer_or_admin(f):
             return forbidden_response()
         return f(*args, **kwargs)
     return decorated
+

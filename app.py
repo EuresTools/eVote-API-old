@@ -1,11 +1,13 @@
 #!flask/bin/python
 from flask import Flask, jsonify, request
 from flask.ext.sqlalchemy import SQLAlchemy
-import auth
 
 app = Flask(__name__)
 app.config.from_object('config')
 db = SQLAlchemy(app)
+
+from models import *
+import auth
 
 @app.route('/')
 @auth.requires_admin
@@ -22,13 +24,13 @@ def get_polls():
     return 'GET /polls'
 
 @app.route('/polls', methods=['POST'])
-@auth.requires_organizer_or_admin
+@auth.requires_organizer
 def post_polls():
     return 'POST /polls'
 
 
 @app.route('/polls/<int:pollId>', methods=['GET', 'PUT', 'DELETE'])
-@auth.requires_organizer_or_admin
+@auth.requires_organizer
 def pollById(pollId):
     method = request.method
     if method == 'GET':
@@ -41,7 +43,7 @@ def pollById(pollId):
 # This endpoint is split into two functions because GET requests require
 # authentication but not POST requests.
 @app.route('/polls/<int:pollId>/votes', methods=['GET'])
-@auth.requires_organizer_or_admin
+@auth.requires_organizer
 def get_votesByPollId(pollId):
     return 'GET /polls/' + str(pollId) + '/votes'
 
@@ -51,7 +53,7 @@ def post_votesByPollId(pollId):
     return 'POST /polls/' + str(pollId) + '/votes'
 
 @app.route('/polls/<int:pollId>/votes/<int:voteId>', methods=['GET', 'DELETE'])
-@auth.requires_organizer_or_admin
+@auth.requires_organizer
 def voteById(pollId, voteId):
     method = request.method
     if method == 'GET':
@@ -60,7 +62,7 @@ def voteById(pollId, voteId):
         return 'DELETE /polls/' + str(pollId) + '/votes/' + str(voteId)
 
 @app.route('/members', methods=['GET', 'POST'])
-@auth.requires_organizer_or_admin
+@auth.requires_organizer
 def members():
     method = request.method
     if method == 'GET':
@@ -69,7 +71,7 @@ def members():
         return 'POST /members'
 
 @app.route('/members/<int:memberId>', methods=['GET', 'PUT', 'DELETE'])
-@auth.requires_organizer_or_admin
+@auth.requires_organizer
 def memberById(memberId):
     method = request.method
     if method == 'GET':
@@ -83,3 +85,4 @@ def memberById(memberId):
 if __name__ == '__main__':
     db.create_all()
     app.run(debug=True)
+
