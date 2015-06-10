@@ -1,8 +1,37 @@
 #!flask/bin/python
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, json
 from flask.ext.sqlalchemy import SQLAlchemy
+import dateutil.parser
+from werkzeug.exceptions import default_exceptions
+from werkzeug.exceptions import HTTPException
 
-app = Flask(__name__)
+__all__ = ['make_json_app']
+
+def make_json_app(import_name):
+    """
+    Creates a JSON-oriented Flask app.
+
+    All error responses that you don't specifically
+    manage yourself will have application/json content
+    type, and will contain JSON like this (just an example):
+
+    { "message": "405: Method Not Allowed" }
+    """
+    def make_json_error(ex):
+        response = jsonify(status='error', message=str(ex))
+        response.status_code = (ex.code
+                                if isinstance(ex, HTTPException)
+                                else 500)
+        return response
+
+    app = Flask(import_name)
+
+    for code in default_exceptions.iterkeys():
+        app.error_handler_spec[None][code] = make_json_error
+    return app
+
+#app = Flask(__name__)
+app = make_json_app(__name__)
 app.config.from_object('config')
 db = SQLAlchemy(app)
 
@@ -25,9 +54,31 @@ def get_polls():
 
 @app.route('/polls', methods=['POST'])
 @auth.requires_organizer
-def post_polls():
-    return 'POST /polls'
-
+def create_poll():
+    try:
+        user = auth.get_user()
+        organizer = user.organizer
+        json = request.get_json()
+        poll = Poll()
+        poll.organizer = organizer
+        poll.question = json['question']
+        poll.select_min = json['select_min']
+        poll.select_max = json['select_max']
+        poll.start_time = dateutil.parser.parse(json['start_time'])
+        poll.end_time = dateutil.parser.parse(json['end_time'])
+        db.session.add(poll)
+        options = json['options']
+        for o in options:
+            option = Option(o)
+            option.poll = poll
+            db.session.add(option)
+        db.session.commit()
+        return jsonify(status='success'), 201
+    except Exception, e:
+        print str(e)
+        db.session.rollback()
+        print 'Exception!!!'
+        return jsonify(status='error')
 
 @app.route('/polls/<int:pollId>', methods=['GET', 'PUT', 'DELETE'])
 @auth.requires_organizer
