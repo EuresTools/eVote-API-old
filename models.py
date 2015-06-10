@@ -12,7 +12,7 @@ class User(db.Model):
     def verify_password(self, password):
         return password_context.verify(password, self.password_hash)
 
-    def __init__(self, username, password, is_admin):
+    def __init__(self, username, password, is_admin=False):
         self.username = username
         self.password_hash = password_context.encrypt(password)
         self.is_admin = is_admin
@@ -23,12 +23,16 @@ class User(db.Model):
 class Organizer(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(120), index=True, unique=True)
-
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    user = db.relationship('User', backref='organizer', uselist=False)
-    members = db.relationship('Member', backref='organizer', lazy='dynamic')
-    polls = db.relationship('Poll', backref='organizer', lazy='dynamic')
+    user = db.relationship('User', backref=db.backref('organizer', uselist=False), uselist=False)
+    members = db.relationship('Member', backref=db.backref('organizer', uselist=False), lazy='dynamic')
+    polls = db.relationship('Poll', backref=db.backref('organizer', uselist=False), lazy='dynamic')
 
+    def __init__(self, name):
+        self.name = name
+
+    def __repr__(self):
+        return '<Organizer %r>' % (self.name)
 
 class Member(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -66,7 +70,7 @@ class Poll(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     start_time = db.Column(db.DateTime)
     end_time = db.Column(db.DateTime)
-    query = db.Column(db.Text)
+    question = db.Column(db.Text)
     select_min = db.Column(db.Integer)
     select_max = db.Column(db.Integer)
 
@@ -76,12 +80,18 @@ class Poll(db.Model):
     votes = db.relationship('Vote', backref='poll', lazy='dynamic')
 
     def __repr__(self):
-        return '<Poll %r>' % (self.query)
+        return '<Poll %r>' % (self.question)
+
+    def json(self):
+        pass
 
 class Option(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     option = db.Column(db.String(120))
     poll_id = db.Column(db.Integer, db.ForeignKey('poll.id'))
+
+    def __init__(self, option):
+        self.option = option
 
     def __repr__(self):
         return '<Option %r>' % (self.option)
