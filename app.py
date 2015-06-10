@@ -60,7 +60,19 @@ def index():
 def get_poll():
     vote_code = request.args.get('code')
     if not vote_code:
-        abort(404)
+        # If no code is specified, check if an organizer is making the request.
+        organizer = auth.get_organizer()
+        if not organizer:
+            abort(404)
+        else:
+            # Give the organizer a list of all his polls.
+            polls = Poll.query.filter_by(organizer=organizer).all()
+            data = {}
+            data['polls'] = []
+            for poll in polls:
+                data['polls'].append(poll.to_dict())
+            return jsonify(status='success', data=data)
+
     code = Code.query.filter_by(code=vote_code).first()
     if not code:
         abort(404)
@@ -234,6 +246,9 @@ def members():
             contact.member = member
             db.session.add(contact)
         db.session.commit()
+        data = {}
+        data['member'] = member.to_dict()
+        return jsonify(status='success', data=data), 201
 
 
 @app.route('/members/<int:memberId>', methods=['GET', 'PUT', 'DELETE'])
@@ -241,7 +256,7 @@ def members():
 def memberById(memberId):
     method = request.method
     organizer = auth.get_organizer()
-    if organizer == None:
+    if not organizer:
         abort(403)
     member = Member.query.filter_by(id=memberId, organizer=organizer).first()
     if not member:
@@ -261,6 +276,47 @@ def memberById(memberId):
         db.session.commit()
         return jsonify(status='success', data=None)
 
+@app.route('/polls/<int:pollId>/codes', methods=['GET', 'POST'])
+@auth.requires_organizer
+def create_code(pollId):
+    method = request.method
+    organizer = auth.get_organizer()
+    if not organizer:
+        abort(403)
+    poll = Poll.query.filter_by(id=pollId, organizer=organizer).first()
+    if not poll:
+        abort(404)
+
+
+    if method == 'GET':
+        codes = poll.codes.all()
+        data = {}
+        data['codes'] = []
+        for code in codes:
+            data['codes'].append(code.to_dict())
+        return jsonify(status='success', data=data)
+
+    elif method == 'POST':
+        # TODO: Handle parsing errors.
+        json = request.get_json()
+        member_ids = json['member_ids']
+        codes = []
+        for member_id in member_ids:
+            member = Member.query.filter_by(id=member_id, organizer=organizer).first()
+            if not member:
+                abort(404)
+            code = Code('bla')
+            code.poll = poll
+            code.member = member
+            db.session.add(code)
+            codes.append(code)
+        db.session.commit()
+        # Note: The codes don't have an id in the db until after commit().
+        data = {}
+        data['codes'] = []
+        for code in codes:
+            data['codes'].append(code.to_dict())
+        return jsonify(status='success', data=data), 201
 
 if __name__ == '__main__':
     db.create_all()

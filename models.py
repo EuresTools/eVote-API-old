@@ -54,7 +54,7 @@ class Member(db.Model):
     group = db.Column(db.String(120), index=True)
 
     organizer_id = db.Column(db.Integer, db.ForeignKey('organizer.id'))
-    contacts = db.relationship('Contact', backref='organization')
+    contacts = db.relationship('Contact', backref='member')
     codes = db.relationship('Code', backref='member', lazy='dynamic')
     votes = db.relationship('Vote', backref='member', lazy='dynamic')
 
