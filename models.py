@@ -169,7 +169,7 @@ class Vote(db.Model):
     code_id = db.Column(db.Integer, db.ForeignKey('code.id'))
     member_id = db.Column(db.Integer, db.ForeignKey('member.id'))
     poll_id = db.Column(db.Integer, db.ForeignKey('poll.id'))
-    options = db.relationship('Option', secondari=vote_option, backref=db.backref('votes', lazy='dynamic'))
+    options = db.relationship('Option', secondary='vote_option', backref=db.backref('votes', lazy='dynamic'))
 
     def to_dict(self):
         data = {}

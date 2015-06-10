@@ -64,6 +64,10 @@ def get_poll():
     code = Code.query.filter_by(code=vote_code).first()
     if not code:
         abort(404)
+    if code.vote != None:
+        data = {}
+        data['code'] = 'This voting code has already been used'
+        return jsonify(status='fail', data=data), 403
     poll = code.poll
     if not poll:
         abort(404)
@@ -138,11 +142,39 @@ def pollById(pollId):
 @app.route('/polls/<int:pollId>/votes', methods=['GET'])
 @auth.requires_organizer
 def get_votesByPollId(pollId):
-    return 'GET /polls/' + str(pollId) + '/votes'
+    organizer = auth.get_organizer()
+    if organizer == None:
+        abort(403)
+    poll = Poll.query.filter_by(organizer=organizer, id=pollId).first()
+    if poll == None:
+        abort(404)
+    # TODO: Paginate.
+    votes = poll.votes.all()
+    data = {}
+    data['votes'] = votes
+    return jsonify(status='success', data=data)
 
 
 @app.route('/polls/<int:pollId>/votes', methods=['POST'])
 def post_votesByPollId(pollId):
+    poll = Poll.query.filter_by(id=pollId).first()
+    if poll == None:
+        abort(404)
+    # TODO: Handle parsing errors.
+    json = request.get_json()
+    vote_code = json['code']
+    options = json['options']
+    # TODO: Finish.
+
+    if not vote_code:
+        abort(401)
+    code = Code.query.filter_by(code=vote_code, poll=poll).first()
+    if not code:
+        abort(403)
+    if code.vote != None:
+        data = {}
+        data['code'] = 'This voting code has already been used'
+        return jsonify(status='fail', data=data), 403
     return 'POST /polls/' + str(pollId) + '/votes'
 
 
@@ -150,30 +182,84 @@ def post_votesByPollId(pollId):
 @auth.requires_organizer
 def voteById(pollId, voteId):
     method = request.method
+    organizer = auth.get_organizer()
+    if organizer == None:
+        abort(403)
+    poll = Poll.query.filter_by(organizer=organizer, id=pollId).first()
+    if poll == None:
+        abort(404)
+    vote = Vote.query.filter_by(poll=poll, id=voteId)
+    if vote == None:
+        abort(404)
+
     if method == 'GET':
-        return 'GET /polls/' + str(pollId) + '/votes/' + str(voteId)
+        data = {}
+        data['vote'] = vote.to_dict()
+        return jsonify(status='success', data=data)
+
     elif method == 'DELETE':
-        return 'DELETE /polls/' + str(pollId) + '/votes/' + str(voteId)
+        db.session.delete(vote)
+        db.session.commit()
+        return jsonify(status='success', data=None)
 
 @app.route('/members', methods=['GET', 'POST'])
 @auth.requires_organizer
 def members():
     method = request.method
+    organizer = auth.get_organizer()
+    if organizer == None:
+        abort(403)
     if method == 'GET':
-        return 'GET /members'
+        # TODO: Paginate.
+        members = Member.query.filter_by(organizer=organizer).all()
+        data = {}
+        data['members'] = []
+        for member in members:
+            data['members'].append(member.to_dict())
+        return jsonify(status='success', data=data)
+
     elif method == 'POST':
-        return 'POST /members'
+        # TODO: Handle parsing errors.
+        json = request.get_json()
+        name = json['name']
+        group = json['group']
+        contacts = json['contacts']
+        member = Member(name, group)
+        member.organizer = organizer
+        db.session.add(member)
+        for c in contacts:
+            name = c['name']
+            email = c['email']
+            contact = Contact(name, email)
+            contact.member = member
+            db.session.add(contact)
+        db.session.commit()
+
 
 @app.route('/members/<int:memberId>', methods=['GET', 'PUT', 'DELETE'])
 @auth.requires_organizer
 def memberById(memberId):
     method = request.method
+    organizer = auth.get_organizer()
+    if organizer == None:
+        abort(403)
+    member = Member.query.filter_by(id=memberId, organizer=organizer).first()
+    if not member:
+        abort(404)
+
     if method == 'GET':
-        return 'GET /members/' + str(memberId)
+        data = {}
+        data['member'] = member.to_dict()
+        return jsonify(status='success', data=data)
+
     elif method == 'PUT':
+        # TODO: Implement PUT.
         return 'PUT /members/' + str(memberId)
+
     elif method == 'DELETE':
-        return 'DELETE /members/' + str(memberId)
+        db.session.delete(member)
+        db.session.commit()
+        return jsonify(status='success', data=None)
 
 
 if __name__ == '__main__':
