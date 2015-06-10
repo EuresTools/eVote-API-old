@@ -123,10 +123,13 @@ def pollById(pollId):
         data['poll'] = poll.to_dict()
         return jsonify(status='success', data=data)
 
+    # TODO: Implement PUT.
     elif method == 'PUT':
         return 'PUT /polls/' + str(pollId)
     elif method == 'DELETE':
-        return 'DELETE /polls/' + str(pollId)
+        db.session.delete(poll)
+        db.session.commit()
+        return jsonify(status='success', data=None)
 
 # This endpoint is split into two functions because GET requests require
 # authentication but not POST requests.
