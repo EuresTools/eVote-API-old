@@ -111,8 +111,18 @@ def create_poll():
 @auth.requires_organizer
 def pollById(pollId):
     method = request.method
+    organizer = auth.get_organizer()
+    if organizer == None:
+        abort(403)
+    poll = Poll.query.filter_by(organizer=organizer, id=pollId).first()
+    if poll == None:
+        abort(404)
+
     if method == 'GET':
-        return 'GET /polls/' + str(pollId)
+        data = {}
+        data['poll'] = poll.to_dict()
+        return jsonify(status='success', data=data)
+
     elif method == 'PUT':
         return 'PUT /polls/' + str(pollId)
     elif method == 'DELETE':
