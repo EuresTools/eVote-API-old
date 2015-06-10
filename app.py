@@ -107,6 +107,7 @@ def create_poll():
         print 'Exception!!!'
         return jsonify(status='error', data=None)
 
+
 @app.route('/polls/<int:pollId>', methods=['GET', 'PUT', 'DELETE'])
 @auth.requires_organizer
 def pollById(pollId):
@@ -131,6 +132,7 @@ def pollById(pollId):
         db.session.commit()
         return jsonify(status='success', data=None)
 
+
 # This endpoint is split into two functions because GET requests require
 # authentication but not POST requests.
 @app.route('/polls/<int:pollId>/votes', methods=['GET'])
@@ -142,6 +144,7 @@ def get_votesByPollId(pollId):
 @app.route('/polls/<int:pollId>/votes', methods=['POST'])
 def post_votesByPollId(pollId):
     return 'POST /polls/' + str(pollId) + '/votes'
+
 
 @app.route('/polls/<int:pollId>/votes/<int:voteId>', methods=['GET', 'DELETE'])
 @auth.requires_organizer

@@ -21,6 +21,13 @@ class User(db.Model):
     def __repr__(self):
         return '<User %r>' % (self.username)
 
+    def to_dict(self):
+        data = {}
+        data['id'] = self.id
+        data['username'] = self.username
+        data['is_admin'] = self.is_admin
+        return data
+
 class Organizer(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(120), index=True, unique=True)
@@ -58,6 +65,16 @@ class Member(db.Model):
     def __repr__(self):
         return '<Member %r>' % (self.name)
 
+    def to_dict(self):
+        data = {}
+        data['id'] = self.id
+        data['name'] = self.name
+        data['group'] = self.group
+        data['contacts'] = []
+        for contact in self.contacts:
+            data['contacts'].append(contact.to_dict())
+        return data
+
 class Contact(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(120), index=True)
@@ -72,6 +89,12 @@ class Contact(db.Model):
     def __repr__(self):
         return '<Contact %r>' % (self.name)
 
+    def to_dict(self):
+        data = {}
+        data['id'] = self.id
+        data['name'] = self.name
+        data['email'] = self.email
+        return data
 
 class Poll(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -134,10 +157,24 @@ class Code(db.Model):
     def __repr__(self):
         return '<Code %r>' % (self.code)
 
+    def to_dict(self):
+        data = {}
+        data['id'] = self.id
+        data['code'] = self.code
+        return data
+
 class Vote(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     time = db.Column(db.DateTime)
     code_id = db.Column(db.Integer, db.ForeignKey('code.id'))
     member_id = db.Column(db.Integer, db.ForeignKey('member.id'))
     poll_id = db.Column(db.Integer, db.ForeignKey('poll.id'))
+
+    def to_dict(self):
+        data = {}
+        data['id'] = self.id
+        data['code'] = self.code.to_dict()
+        data['poll_id'] = self.poll_id
+        data['member_id'] = self.member_id
+        return data
 
