@@ -27,16 +27,16 @@ def is_organizer(username):
     return True
 
 def authenticate_response():
-    #abort(401)
-    response = jsonify(status='fail', data=None)
-    response.status_code = 401
-    return response
+    abort(401)
+    #response = jsonify(status='fail', data=None)
+    #response.status_code = 401
+    #return response
 
 def forbidden_response():
-    #abort(403)
-    response = jsonify(status='fail', data=None)
-    response.status_code = 403
-    return response
+    abort(403)
+    #response = jsonify(status='fail', data=None)
+    #response.status_code = 403
+    #return response
  
 # Make sure the user is authenticated.
 def requires_auth(f):

@@ -5,7 +5,7 @@ import dateutil.parser
 from werkzeug.exceptions import default_exceptions
 from werkzeug.exceptions import HTTPException
 
-__all__ = ['make_json_app']
+#__all__ = ['make_json_app']
 
 def make_json_app(import_name):
     """
@@ -18,10 +18,20 @@ def make_json_app(import_name):
     { "message": "405: Method Not Allowed" }
     """
     def make_json_error(ex):
-        response = jsonify(status='error', message=str(ex))
-        response.status_code = (ex.code
-                                if isinstance(ex, HTTPException)
-                                else 500)
+        message = str(ex)
+        status = ''
+        code = 0
+        if isinstance(ex, HTTPException):
+            code = ex.code
+        else:
+            code = 500
+
+        if code in [401, 403, 405]:
+            status = 'fail'
+        else:
+            status = 'error'
+        response = jsonify(status=status, message=message)
+        response.status_code = code
         return response
 
     app = Flask(import_name)
@@ -55,6 +65,7 @@ def get_polls():
 @app.route('/polls', methods=['POST'])
 @auth.requires_organizer
 def create_poll():
+    # TODO: Handle parsing errors!
     try:
         user = auth.get_user()
         organizer = user.organizer
@@ -73,12 +84,19 @@ def create_poll():
             option.poll = poll
             db.session.add(option)
         db.session.commit()
-        return jsonify(status='success'), 201
+        data = {}
+        data['poll'] = poll.to_dict()
+        return jsonify(status='success', data=data), 201
+    except HTTPException, e:
+        print str(e)
+        db.session.rollback()
+        print 'HTTPException!!!'
+        return jsonify(status='error', data=None), e.code
     except Exception, e:
         print str(e)
         db.session.rollback()
         print 'Exception!!!'
-        return jsonify(status='error')
+        return jsonify(status='error', data=None)
 
 @app.route('/polls/<int:pollId>', methods=['GET', 'PUT', 'DELETE'])
 @auth.requires_organizer

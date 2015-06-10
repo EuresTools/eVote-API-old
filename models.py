@@ -1,4 +1,5 @@
 from app import db
+import json
 from passlib.apps import custom_app_context as password_context
 
 class User(db.Model):
@@ -33,6 +34,12 @@ class Organizer(db.Model):
 
     def __repr__(self):
         return '<Organizer %r>' % (self.name)
+
+    def to_dict(self):
+        data = {}
+        data['id'] = self.id
+        data['name'] = self.name
+        return data
 
 class Member(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -82,8 +89,19 @@ class Poll(db.Model):
     def __repr__(self):
         return '<Poll %r>' % (self.question)
 
-    def json(self):
-        pass
+    def to_dict(self):
+        data = {}
+        data['id'] = self.id
+        data['question'] = self.question
+        data['select_min'] = self.select_min
+        data['select_max'] = self.select_max
+        data['start_time'] = self.start_time.isoformat()
+        data['end_time'] = self.end_time.isoformat()
+        data['organizer'] = self.organizer.to_dict()
+        data['options'] = []
+        for option in self.options:
+            data['options'].append(option.to_dict())
+        return data
 
 class Option(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -95,6 +113,12 @@ class Option(db.Model):
 
     def __repr__(self):
         return '<Option %r>' % (self.option)
+
+    def to_dict(self):
+        data = {}
+        data['id'] = self.id
+        data['option'] = self.option
+        return data
 
 class Code(db.Model):
     id = db.Column(db.Integer, primary_key=True)
