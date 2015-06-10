@@ -1,5 +1,5 @@
 #!flask/bin/python
-from flask import Flask, jsonify, request, json
+from flask import Flask, jsonify, request, json, abort
 from flask.ext.sqlalchemy import SQLAlchemy
 import dateutil.parser
 from werkzeug.exceptions import default_exceptions
@@ -57,10 +57,19 @@ def index():
 # The /polls endpoint is split into two functions because POST requests require
 # authentication but not GET requests.
 @app.route('/polls', methods=['GET'])
-def get_polls():
-    code = request.args.get('code')
-    print code
-    return 'GET /polls'
+def get_poll():
+    vote_code = request.args.get('code')
+    if not vote_code:
+        abort(404)
+    code = Code.query.filter_by(code=vote_code).first()
+    if not code:
+        abort(404)
+    poll = code.poll
+    if not poll:
+        abort(404)
+    data = {}
+    data['poll'] = poll.to_dict()
+    return jsonify(status='success', data=data), 200
 
 @app.route('/polls', methods=['POST'])
 @auth.requires_organizer

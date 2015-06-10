@@ -128,9 +128,8 @@ class Code(db.Model):
     member_id = db.Column(db.Integer, db.ForeignKey('member.id'))
     vote = db.relationship('Vote', backref='code', uselist=False)
 
-    def __init__(self, member, poll):
-        self.member = member
-        self.poll = poll
+    def __init__(self, code):
+        self.code = code
 
     def __repr__(self):
         return '<Code %r>' % (self.code)
