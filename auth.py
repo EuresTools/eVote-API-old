@@ -79,3 +79,9 @@ def get_user():
     user = models.User.query.filter_by(username=auth.username).first()
     return user
 
+def get_organizer():
+    user = get_user()
+    if user == None:
+        return None
+    organizer = user.organizer
+    return organizer
