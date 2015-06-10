@@ -169,6 +169,7 @@ class Vote(db.Model):
     code_id = db.Column(db.Integer, db.ForeignKey('code.id'))
     member_id = db.Column(db.Integer, db.ForeignKey('member.id'))
     poll_id = db.Column(db.Integer, db.ForeignKey('poll.id'))
+    options = db.relationship('Option', secondari=vote_option, backref=db.backref('votes', lazy='dynamic'))
 
     def to_dict(self):
         data = {}
@@ -176,5 +177,14 @@ class Vote(db.Model):
         data['code'] = self.code.to_dict()
         data['poll_id'] = self.poll_id
         data['member_id'] = self.member_id
+        data['options'] = []
+        for option in self.options:
+            data['options'].append(option.to_dict())
         return data
+
+# A relational table between votes and options.
+vote_option = db.Table('vote_option',
+    db.Column('vote_id', db.Integer, db.ForeignKey('vote.id')),
+    db.Column('option_id', db.Integer, db.ForeignKey('option.id'))
+)
 
