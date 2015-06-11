@@ -1,9 +1,9 @@
 #!flask/bin/python
 from flask import Flask, jsonify, request, json, abort
 from flask.ext.sqlalchemy import SQLAlchemy
-import dateutil.parser
 from werkzeug.exceptions import default_exceptions
 from werkzeug.exceptions import HTTPException
+from datetime import datetime
 
 #__all__ = ['make_json_app']
 
@@ -20,7 +20,7 @@ def make_json_app(import_name):
     def make_json_error(ex):
         message = str(ex)
         status = ''
-        code = 0
+        code = 500
         if isinstance(ex, HTTPException):
             code = ex.code
         else:
@@ -46,6 +46,7 @@ app.config.from_object('config')
 db = SQLAlchemy(app)
 
 from models import *
+from parser import *
 import auth
 
 @app.route('/')
@@ -73,9 +74,11 @@ def get_poll():
                 data['polls'].append(poll.to_dict())
             return jsonify(status='success', data=data)
 
+    # Look up the given vote code and use it to retrieve the poll.
     code = Code.query.filter_by(code=vote_code).first()
     if not code:
         abort(404)
+    # Has the code already been used?
     if code.vote != None:
         data = {}
         data['code'] = 'This voting code has already been used'
@@ -90,38 +93,56 @@ def get_poll():
 @app.route('/polls', methods=['POST'])
 @auth.requires_organizer
 def create_poll():
+    organizer = auth.get_organizer()
+    if not organizer:
+        abort(403)
+    json = request.get_json()
+    poll, error = parse_poll(json)
+    if error:
+        return jsonify(status='fail', data=error), 400
+
+    # Attatch the organizer to the poll and save it.
+    poll.organizer = organizer
+    db.session.add(poll)
+    for option in poll.options:
+        db.session.add(option)
+    db.session.commit()
+    return jsonify(status='success', data=poll.to_dict()), 201
     # TODO: Handle parsing errors!
-    try:
-        user = auth.get_user()
-        organizer = user.organizer
-        json = request.get_json()
-        poll = Poll()
-        poll.organizer = organizer
-        poll.question = json['question']
-        poll.select_min = json['select_min']
-        poll.select_max = json['select_max']
-        poll.start_time = dateutil.parser.parse(json['start_time'])
-        poll.end_time = dateutil.parser.parse(json['end_time'])
-        db.session.add(poll)
-        options = json['options']
-        for o in options:
-            option = Option(o)
-            option.poll = poll
-            db.session.add(option)
-        db.session.commit()
-        data = {}
-        data['poll'] = poll.to_dict()
-        return jsonify(status='success', data=data), 201
-    except HTTPException, e:
-        print str(e)
-        db.session.rollback()
-        print 'HTTPException!!!'
-        return jsonify(status='error', data=None), e.code
-    except Exception, e:
-        print str(e)
-        db.session.rollback()
-        print 'Exception!!!'
-        return jsonify(status='error', data=None)
+    #try:
+        #user = auth.get_user()
+        #organizer = user.organizer
+        #json = request.get_json()
+        #poll = Poll()
+        #poll.organizer = organizer
+        #poll.question = json['question']
+        #poll.select_min = json['select_min']
+        #poll.select_max = json['select_max']
+        #poll.start_time = dateutil.parser.parse(json['start_time'])
+        #poll.end_time = dateutil.parser.parse(json['end_time'])
+        #db.session.add(poll)
+        #options = json['options']
+        #for o in options:
+            #option = Option(o)
+            #option.poll = poll
+            #db.session.add(option)
+        #db.session.commit()
+        #data = {}
+        #data['poll'] = poll.to_dict()
+        #return jsonify(status='success', data=data), 201
+    #except HTTPException, e:
+        #print str(e)
+        #db.session.rollback()
+        #print 'HTTPException!!!'
+        #return jsonify(status='error', data=None), e.code
+    #except Exception, e:
+        #print str(e)
+        #print 'Exception type: %r' % (type(e).__name__)
+        #db.session.rollback()
+        #print 'Exception!!!'
+        #return jsonify(status='error', data=None), 500
+    #finally:
+        #pass
 
 
 @app.route('/polls/<int:pollId>', methods=['GET', 'PUT', 'DELETE'])
