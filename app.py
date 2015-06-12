@@ -108,41 +108,6 @@ def create_poll():
         db.session.add(option)
     db.session.commit()
     return jsonify(status='success', data=poll.to_dict()), 201
-    # TODO: Handle parsing errors!
-    #try:
-        #user = auth.get_user()
-        #organizer = user.organizer
-        #json = request.get_json()
-        #poll = Poll()
-        #poll.organizer = organizer
-        #poll.question = json['question']
-        #poll.select_min = json['select_min']
-        #poll.select_max = json['select_max']
-        #poll.start_time = dateutil.parser.parse(json['start_time'])
-        #poll.end_time = dateutil.parser.parse(json['end_time'])
-        #db.session.add(poll)
-        #options = json['options']
-        #for o in options:
-            #option = Option(o)
-            #option.poll = poll
-            #db.session.add(option)
-        #db.session.commit()
-        #data = {}
-        #data['poll'] = poll.to_dict()
-        #return jsonify(status='success', data=data), 201
-    #except HTTPException, e:
-        #print str(e)
-        #db.session.rollback()
-        #print 'HTTPException!!!'
-        #return jsonify(status='error', data=None), e.code
-    #except Exception, e:
-        #print str(e)
-        #print 'Exception type: %r' % (type(e).__name__)
-        #db.session.rollback()
-        #print 'Exception!!!'
-        #return jsonify(status='error', data=None), 500
-    #finally:
-        #pass
 
 
 @app.route('/polls/<int:pollId>', methods=['GET', 'PUT', 'DELETE'])
@@ -161,9 +126,37 @@ def pollById(pollId):
         data['poll'] = poll.to_dict()
         return jsonify(status='success', data=data)
 
-    # TODO: Implement PUT.
     elif method == 'PUT':
-        return 'PUT /polls/' + str(pollId)
+        json = request.get_json()
+        new_poll, error = parse_poll(json)
+        if error:
+            return jsonify(status='fail', data=error), 400
+
+        # Don't allow editing of a poll that already has votes.
+        votes = poll.votes.all()
+        if votes:
+            return jsonify(status='fail', message='The poll already has some votes and cannot be edited'), 403
+
+        poll.question = new_poll.question
+        poll.select_min = new_poll.select_min
+        poll.select_max = new_poll.select_max
+        poll.start_time = new_poll.start_time
+        poll.end_time = new_poll.end_time
+
+        # Delete all the old options.
+        for option in poll.options:
+            db.session.delete(option)
+        # Replace them with the new ones.
+        for option in new_poll.options:
+            # This needs to be done in a weird way to prevent new_poll from
+            # being saved to the db because of relationship cascading.
+            poll.options.append(Option(option=option.option))
+        db.session.commit()
+
+        data = {}
+        data['poll'] = poll.to_dict()
+        return jsonify(status='success', data=data)
+
     elif method == 'DELETE':
         db.session.delete(poll)
         db.session.commit()
