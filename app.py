@@ -265,7 +265,7 @@ def members():
         json = request.get_json()
         member, error = parse_member(json)
         if error:
-            return jsonify(status='fail', data=error)
+            return jsonify(status='fail', data=error), 400
         # Attach organizer and save.
         member.organizer = organizer
         db.session.add(member)
@@ -344,17 +344,16 @@ def code(pollId):
 
     elif method == 'POST':
         json = request.get_json()
-        codes, error = parse_codes(json, organizer)
+        codes, error = parse_codes(json, poll)
         if error:
-            return jsonify(status='fail', data=error)
+            return jsonify(status='fail', data=error), 400
         
         for code in codes:
-            code.organizer = organizer
             length = 10
             # Make sure the generated code is unique.
-            token = ''.join(random.SystemRandom().choice(string.ascii + string.digits) for _ in range(length))
-            while models.Code.filter_by(code=token).exists():
-                token = ''.join(random.SystemRandom().choice(string.ascii + string.digits) for _ in range(length))
+            token = ''.join(random.SystemRandom().choice(string.ascii_lowercase + string.digits) for _ in range(length))
+            while models.Code.query.filter_by(code=token).first():
+                token = ''.join(random.SystemRandom().choice(string.ascii_lowercase + string.digits) for _ in range(length))
             code.code = token
             db.session.add(code)
         db.session.commit()

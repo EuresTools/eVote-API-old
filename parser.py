@@ -1,7 +1,10 @@
 import models
 import iso8601
 import pytz
+import string
 from datetime import datetime, timedelta
+from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.orm.exc import MultipleResultsFound
 
 # Returns a 2-tuple.
 # Either a poll object and None or None and a dictionary of error messages.
@@ -205,7 +208,7 @@ def parse_member(json):
 
     try:
         contacts = json['contacts']
-        if not isinstance(options, list):
+        if not isinstance(contacts, list):
             error['contacts'] = 'Contacts must be provided in a list'
         elif not contacts:
             error['contacts'] = 'At least one contact must be specified'
@@ -242,41 +245,34 @@ def parse_member(json):
         return None, error
     return member, None
 
-def parse_codes(json, organizer):
+def parse_codes(json, poll):
     codes = []
     error = {}
-    poll = None
-    try:
-        poll_id = int(json['poll_id'])
-        poll = models.Member.filter_by(id=poll_id, organizer=organizer).one()
-    except ValueError, e:
-        error['poll_id'] = 'poll_id must be a valid integer'
-    except KeyError, e:
-        error['poll_id'] = 'The \'poll_id\' field is required'
-    except (NoResultFound, MultipleResultsFound), e:
-        error['poll_id'] = 'Invalid poll id'
-
-
     try:
         member_ids = json['member_ids']
         if not isinstance(member_ids, list):
             error['member_ids'] = 'Member ids must be provided in a list'
         elif not member_ids:
             error['member_ids'] = 'At least one member id must be specified'
+        elif len(member_ids) != len(set(member_ids)):
+            error['member_ids'] = 'You cannot create multiple codes for the same member'
         else:
             for member_id_str in member_ids:
                 member_id = int(member_id_str)
-                member = models.Member.filter_by(id=member_id, organizer=organizer).one()
+                member = models.Member.query.filter_by(id=member_id, organizer=poll.organizer).one()
+                if models.Code.query.filter_by(poll=poll, member=member).first():
+                    error['member_ids'] = 'At least one member already has a code for this poll'
+                    break
                 code = models.Code()
                 code.poll = poll
                 code.member = member
-
+                codes.append(code)
     except ValueError, e:
-        error['member_id'] = 'The member_ids must be a valid integer'
+        error['member_ids'] = 'The member_ids must be a valid integer'
     except KeyError, e:
-        error['member_id'] = 'The \'member_id\' field is required'
+        error['member_ids'] = 'The \'member_ids\' field is required'
     except (NoResultFound, MultipleResultsFound), e:
-        error['member_id'] = 'At least one member id is invalid'
+        error['member_ids'] = 'At least one member id is invalid'
 
     if error:
         return None, error

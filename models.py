@@ -58,10 +58,6 @@ class Member(db.Model):
     codes = db.relationship('Code', backref='member', lazy='dynamic')
     votes = db.relationship('Vote', backref='member', lazy='dynamic')
 
-    def __init__(self, name, group):
-        self.name = name
-        self.group = group
-
     def __repr__(self):
         return '<Member %r>' % (self.name)
 
@@ -81,10 +77,6 @@ class Contact(db.Model):
     email = db.Column(db.String(80), index=True)
 
     member_id = db.Column(db.Integer, db.ForeignKey('member.id'))
-
-    def __init__(self, name, email):
-        self.name = name
-        self.email = email
 
     def __repr__(self):
         return '<Contact %r>' % (self.name)
@@ -150,9 +142,6 @@ class Code(db.Model):
     poll_id = db.Column(db.Integer, db.ForeignKey('poll.id'))
     member_id = db.Column(db.Integer, db.ForeignKey('member.id'))
     vote = db.relationship('Vote', backref='code', uselist=False)
-
-    def __init__(self, code):
-        self.code = code
 
     def __repr__(self):
         return '<Code %r>' % (self.code)
