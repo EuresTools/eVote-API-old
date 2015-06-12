@@ -30,11 +30,18 @@ def parse_poll(json):
 
     try:
         poll.start_time = iso8601.parse_date(json['start_time'])
+
+        # Avoid timezone hell for now...
+        poll.start_time = poll.start_time.replace(tzinfo=None)
+
     except iso8601.ParseError, e:
         error['start_time'] = 'The start time must be ISO 8601 formatted'
 
     try:
         poll.end_time = iso8601.parse_date(json['end_time'])
+
+        # Avoid timezone hell for now...
+        poll.end_time = poll.end_time.replace(tzinfo=None)
     except iso8601.ParseError, e:
         error['end_time'] = 'The end time must be ISO 8601 formatted'
 
@@ -58,7 +65,8 @@ def parse_poll(json):
         error['options'] = 'The options must be a list of valid strings'
 
 
-    now = datetime.now(pytz.utc)
+    now = datetime.now()
+    now = now.replace(tzinfo=None)
     # Round down to last second.
     now = now - timedelta(minutes=0, seconds=0, microseconds=now.microsecond)
 
