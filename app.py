@@ -151,13 +151,23 @@ def pollById(pollId):
             # This needs to be done in a weird way to prevent new_poll from
             # being saved to the db because of relationship cascading.
             poll.options.append(Option(option=option.option))
-        db.session.commit()
 
+        db.session.commit()
         data = {}
         data['poll'] = poll.to_dict()
         return jsonify(status='success', data=data)
 
     elif method == 'DELETE':
+        # Delete all the option objects.
+        for option in poll.options:
+            db.session.delete(option)
+        # Delete all the code objects.
+        for code in poll.codes:
+            db.session.delete(code)
+        # Delete all the vote objects.
+        for vote in poll.votes:
+            db.session.delete(vote)
+        # Delete the poll itself.
         db.session.delete(poll)
         db.session.commit()
         return jsonify(status='success', data=None)
