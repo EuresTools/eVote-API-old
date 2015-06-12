@@ -4,6 +4,7 @@ from flask.ext.sqlalchemy import SQLAlchemy
 from werkzeug.exceptions import default_exceptions
 from werkzeug.exceptions import HTTPException
 from datetime import datetime
+import random
 
 #__all__ = ['make_json_app']
 
@@ -196,6 +197,7 @@ def get_votesByPollId(pollId):
 
 
 @app.route('/polls/<int:pollId>/votes', methods=['POST'])
+# TODO: Test
 def post_votesByPollId(pollId):
     poll = Poll.query.filter_by(id=pollId).first()
     if poll == None:
@@ -244,6 +246,7 @@ def voteById(pollId, voteId):
 
 @app.route('/members', methods=['GET', 'POST'])
 @auth.requires_organizer
+# TODO: Test
 def members():
     method = request.method
     organizer = auth.get_organizer()
@@ -259,20 +262,13 @@ def members():
         return jsonify(status='success', data=data)
 
     elif method == 'POST':
-        # TODO: Handle parsing errors.
         json = request.get_json()
-        name = json['name']
-        group = json['group']
-        contacts = json['contacts']
-        member = Member(name, group)
+        member, error = parse_member(json)
+        if error:
+            return jsonify(status='fail', data=error)
+        # Attach organizer and save.
         member.organizer = organizer
         db.session.add(member)
-        for c in contacts:
-            name = c['name']
-            email = c['email']
-            contact = Contact(name, email)
-            contact.member = member
-            db.session.add(contact)
         db.session.commit()
         data = {}
         data['member'] = member.to_dict()
@@ -281,6 +277,7 @@ def members():
 
 @app.route('/members/<int:memberId>', methods=['GET', 'PUT', 'DELETE'])
 @auth.requires_organizer
+# TODO: Test
 def memberById(memberId):
     method = request.method
     organizer = auth.get_organizer()
@@ -296,17 +293,38 @@ def memberById(memberId):
         return jsonify(status='success', data=data)
 
     elif method == 'PUT':
-        # TODO: Implement PUT.
-        return 'PUT /members/' + str(memberId)
+        json = request.get_json()
+        new_member, error = parse_member(json)
+        if error:
+            return jsonify(status='fail', data=error)
+
+        # Delete the old contact objects.
+        for contact in member.contacts:
+            db.session.delete(contact)
+
+        member.name = new_member.name
+        member.group = new_member.group
+        for new_contact in new_member.contacts:
+            contact = Contact(name=new_contact.name, email=new_contact.email)
+            member.contacts.append(contact)
+        db.session.add(member)
+        db.session.commit()
+
+        data = {}
+        data['member'] = member.to_dict()
+        return jsonify(status='success', data=data)
+
 
     elif method == 'DELETE':
+        for contact in member.contacts:
+            db.session.delete(contact)
         db.session.delete(member)
         db.session.commit()
         return jsonify(status='success', data=None)
 
 @app.route('/polls/<int:pollId>/codes', methods=['GET', 'POST'])
 @auth.requires_organizer
-def create_code(pollId):
+def code(pollId):
     method = request.method
     organizer = auth.get_organizer()
     if not organizer:
@@ -325,26 +343,28 @@ def create_code(pollId):
         return jsonify(status='success', data=data)
 
     elif method == 'POST':
-        # TODO: Handle parsing errors.
         json = request.get_json()
-        member_ids = json['member_ids']
-        codes = []
-        for member_id in member_ids:
-            member = Member.query.filter_by(id=member_id, organizer=organizer).first()
-            if not member:
-                abort(404)
-            code = Code('bla')
-            code.poll = poll
-            code.member = member
+        codes, error = parse_codes(json, organizer)
+        if error:
+            return jsonify(status='fail', data=error)
+        
+        for code in codes:
+            code.organizer = organizer
+            length = 10
+            # Make sure the generated code is unique.
+            token = ''.join(random.SystemRandom().choice(string.ascii + string.digits) for _ in range(length))
+            while models.Code.filter_by(code=token).exists():
+                token = ''.join(random.SystemRandom().choice(string.ascii + string.digits) for _ in range(length))
+            code.code = token
             db.session.add(code)
-            codes.append(code)
         db.session.commit()
-        # Note: The codes don't have an id in the db until after commit().
-        data = {}
+
+        data ={}
         data['codes'] = []
         for code in codes:
             data['codes'].append(code.to_dict())
         return jsonify(status='success', data=data), 201
+
 
 if __name__ == '__main__':
     db.create_all()

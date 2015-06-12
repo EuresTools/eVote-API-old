@@ -13,6 +13,8 @@ def parse_poll(json):
         poll.question = str(json['question'])
     except ValueError, e:
         error['question'] = 'The question must be a valid string'
+    except KeyError, e:
+        error['question'] = 'The \'question\' field is required'
 
     try:
         poll.select_min = int(json['select_min'])
@@ -20,6 +22,8 @@ def parse_poll(json):
             error['select_min'] = 'The minimum number of selections cannot be negative'
     except ValueError, e:
         error['select_min'] = 'The minimum number of selections must be an integer'
+    except KeyError, e:
+        error['select_min'] = 'The \'select_min\' field is required'
 
     try:
         poll.select_max = int(json['select_max'])
@@ -27,6 +31,8 @@ def parse_poll(json):
             error['select_max'] = 'The maximum number of selections must be greater than 0'
     except ValueError, e:
         error['select_max'] = 'The maximum number of selections must be an integer'
+    except KeyError, e:
+        error['select_max'] = 'The \'select_max\' field is required'
 
     try:
         poll.start_time = iso8601.parse_date(json['start_time'])
@@ -36,6 +42,8 @@ def parse_poll(json):
 
     except iso8601.ParseError, e:
         error['start_time'] = 'The start time must be ISO 8601 formatted'
+    except KeyError, e:
+        error['start_time'] = 'The \'start_time\' field is required'
 
     try:
         poll.end_time = iso8601.parse_date(json['end_time'])
@@ -44,6 +52,8 @@ def parse_poll(json):
         poll.end_time = poll.end_time.replace(tzinfo=None)
     except iso8601.ParseError, e:
         error['end_time'] = 'The end time must be ISO 8601 formatted'
+    except KeyError, e:
+        error['end_time'] = 'The \'end_time\' field is required'
 
     try:
         options = json['options']
@@ -62,6 +72,8 @@ def parse_poll(json):
                 option.poll = poll
     except ValueError, e:
         error['options'] = 'The options must be a list of valid strings'
+    except KeyError, e:
+        error['options'] = 'The \'options\' field is required'
 
 
     now = datetime.now()
@@ -118,6 +130,8 @@ def parse_vote(json, poll):
         vote_code = str(json['code'])
     except ValueError, e:
         error['code'] = 'The voting code must be a valid string'
+    except KeyError, e:
+        error['code'] = 'The \'code\' parameter is required'
 
     code = None
     if 'code' not in error:
@@ -165,8 +179,106 @@ def parse_vote(json, poll):
                     error['options'] = 'One or more options are invalid'
     except ValueError, e:
         error['options'] = 'The options must be a list of valid integers'
+    except KeyError, e:
+        error['options'] = 'The \'options\' parameter is required'
 
     if error:
         return None, error
     return vote, None
+
+def parse_member(json):
+    member = models.Member()
+    error = {}
+    try:
+        member.name = str(json['name'])
+    except ValueError, e:
+        error['name'] = 'Name must be a valid string'
+    except KeyError, e:
+        error['name'] = 'The \'name\' field is required'
+
+    try:
+        member.group = str(json['group'])
+    except ValueError, e:
+        error['group'] = 'Group must be a valid string'
+    except KeyError, e:
+        error['group'] = 'The \'group\' field is required'
+
+    try:
+        contacts = json['contacts']
+        if not isinstance(options, list):
+            error['contacts'] = 'Contacts must be provided in a list'
+        elif not contacts:
+            error['contacts'] = 'At least one contact must be specified'
+        else:
+            emails = set()
+            for c in contacts:
+                contact = models.Contact()
+                contact.member = member
+                try:
+                    contact.name = str(c['name'])
+                except ValueError, e:
+                    error['contacts'] = 'The contact names must be valid strings'
+                    break
+                except KeyError, e:
+                    error['contacts'] = 'The \'name\' field is required for each contact'
+                    break
+                try:
+                    contact.email = str(c['email'])
+                    # TODO: Validate email format
+                    if contact.email in emails:
+                        error['contacts'] = 'The contact emails must be unique'
+                        break
+                    emails.add(contact.email)
+                except ValueError, e:
+                    error['contacts'] = 'The contact emails must be valid strings'
+                    break
+                except KeyError, e:
+                    error['contacts'] = 'The \'email\' field is required for each contact'
+                    break
+    except KeyError, e:
+        error['contacts'] = 'The \'contacts\' field is required'
+
+    if error:
+        return None, error
+    return member, None
+
+def parse_codes(json, organizer):
+    codes = []
+    error = {}
+    poll = None
+    try:
+        poll_id = int(json['poll_id'])
+        poll = models.Member.filter_by(id=poll_id, organizer=organizer).one()
+    except ValueError, e:
+        error['poll_id'] = 'poll_id must be a valid integer'
+    except KeyError, e:
+        error['poll_id'] = 'The \'poll_id\' field is required'
+    except (NoResultFound, MultipleResultsFound), e:
+        error['poll_id'] = 'Invalid poll id'
+
+
+    try:
+        member_ids = json['member_ids']
+        if not isinstance(member_ids, list):
+            error['member_ids'] = 'Member ids must be provided in a list'
+        elif not member_ids:
+            error['member_ids'] = 'At least one member id must be specified'
+        else:
+            for member_id_str in member_ids:
+                member_id = int(member_id_str)
+                member = models.Member.filter_by(id=member_id, organizer=organizer).one()
+                code = models.Code()
+                code.poll = poll
+                code.member = member
+
+    except ValueError, e:
+        error['member_id'] = 'The member_ids must be a valid integer'
+    except KeyError, e:
+        error['member_id'] = 'The \'member_id\' field is required'
+    except (NoResultFound, MultipleResultsFound), e:
+        error['member_id'] = 'At least one member id is invalid'
+
+    if error:
+        return None, error
+    return codes, None
 
