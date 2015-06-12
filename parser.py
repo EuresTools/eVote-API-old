@@ -61,7 +61,6 @@ def parse_poll(json):
                 option = models.Option(string)
                 option.poll = poll
     except ValueError, e:
-        print 'Value error on options'
         error['options'] = 'The options must be a list of valid strings'
 
 
@@ -94,7 +93,80 @@ def parse_poll(json):
             error['select_min'] = 'The minimum number of selections cannot be greater than the maximum'
             error['select_max'] = 'The maximum number of selections cannot be less than the minimum'
 
-    success = len(error) == 0
-    if not success:
+    if error:
         return None, error
     return poll, None
+
+# The caller must also provide the appropriate poll object for validation.
+def parse_vote(json, poll):
+    vote = models.Vote()
+    vote.time = datetime.now().replace(tzinfo=None)
+    # Put all errors in a dictionary to return to the user.
+    error = {}
+
+    # Check if the poll is open.
+    #if vote.time < poll.start_time:
+         #error['message'] = 'This poll is not open yet'
+    #elif vote.time > poll.end_time:
+         #error['message'] = 'This poll is no longer open'
+
+    # Don't provide further error messages if the poll is not open.
+    #if error:
+        #return None, error
+
+    try:
+        vote_code = str(json['code'])
+    except ValueError, e:
+        error['code'] = 'The voting code must be a valid string'
+
+    code = None
+    if 'code' not in error:
+        try:
+            code = models.Code.query.filter_by(code=vote_code).one()
+        except NoResultFound, e:
+            error['code'] = 'This voting code is invalid'
+        except MultipleResultsFound, e:
+            error['code'] = 'There is an unknown problem with this voting code'
+
+    if code:
+        # Check if the code is for this poll.
+        if code.poll != poll:
+            error['code'] = 'This voting code is invalid'
+        elif code.vote:
+            error['code'] = 'This voting code has already been used'
+
+    # Don't provide further error messages if there is a problem with the code.
+    if error:
+        return None, error
+    
+    vote.code = code
+    vote.member = code.member
+    vote.poll = code.poll
+
+    try:
+        options = json['options']
+        if not isinstance(options, list):
+            error['options'] = 'Options must be provided in a list'
+        elif len(options) < poll.select_min:
+            error['options'] = 'There must be at least %d options' % (poll.select_min)
+        elif len(options) < poll.select_max:
+            error['options'] = 'There can at most be %d options' % (poll.select_max)
+
+        # Check for duplicate options.
+        elif len(options) != len(set(options)):
+            error['options'] = 'The options must be unique'
+        else:
+            for o in options:
+                option_id = int(o)
+                try:
+                    option = models.Option.query.filter_by(id=option_id, poll=poll).one()
+                    vote.options.append(option)
+                except (NoResultFound, MultipleResultsFound), e:
+                    error['options'] = 'One or more options are invalid'
+    except ValueError, e:
+        error['options'] = 'The options must be a list of valid integers'
+
+    if error:
+        return None, error
+    return vote, None
+

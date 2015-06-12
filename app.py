@@ -7,6 +7,8 @@ from datetime import datetime
 
 #__all__ = ['make_json_app']
 
+# TODO: Change id lookups with first() to one() and handle exceptions.
+
 def make_json_app(import_name):
     """
     Creates a JSON-oriented Flask app.
@@ -187,7 +189,9 @@ def get_votesByPollId(pollId):
     # TODO: Paginate.
     votes = poll.votes.all()
     data = {}
-    data['votes'] = votes
+    data['votes'] = []
+    for vote in votes:
+        data['votes'].append(vote.to_dict())
     return jsonify(status='success', data=data)
 
 
@@ -196,22 +200,22 @@ def post_votesByPollId(pollId):
     poll = Poll.query.filter_by(id=pollId).first()
     if poll == None:
         abort(404)
-    # TODO: Handle parsing errors.
-    json = request.get_json()
-    vote_code = json['code']
-    options = json['options']
-    # TODO: Finish.
+    # Make sure the poll is open.
+    now = datetime.now().replace(tzinfo=None)
+    if now < poll.start_time or now > poll.end_time:
+        return jsonify(status='fail', message='This poll is currently not open', data=None), 403
 
-    if not vote_code:
-        abort(401)
-    code = Code.query.filter_by(code=vote_code, poll=poll).first()
-    if not code:
-        abort(403)
-    if code.vote != None:
-        data = {}
-        data['code'] = 'This voting code has already been used'
-        return jsonify(status='fail', data=data), 403
-    return 'POST /polls/' + str(pollId) + '/votes'
+    json = request.get_json()
+    vote, error = parse_vote(json, poll)
+    if error:
+        return jsonify(status='fail', data=error), 400
+    db.session.add(vote)
+    db.session.commit()
+
+    data = {}
+    data['vote'] = vote.to_dict()
+    return jsonify(status='success', data=data), 201
+
 
 
 @app.route('/polls/<int:pollId>/votes/<int:voteId>', methods=['GET', 'DELETE'])
