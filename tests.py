@@ -7,6 +7,10 @@ import tempfile
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///test.db'
 db = SQLAlchemy(app)
 
+admin = 'admin'
+organizer = 'organizer'
+password = 'password'
+
 from models import *
 
 class eVoteTestCase(unittest.TestCase):
@@ -32,15 +36,21 @@ class eVoteTestCase(unittest.TestCase):
     def tearDown(self):
         db.drop_all()
 
+    # Get all polls of organizer when none exist.
+    def test_get_polls_empty(self):
+        res = self.app.get('/polls', headers={'Authorization': 'Basic ' + base64.b64encode(organizer + ":" + password), 'Content-Type': 'application/json'})
+        data = res.get_data()
+        js = json.loads(data)
+        assert not js['data']['polls']
+
 
     def test_create_poll(self):
-        username = 'organizer'
-        password = 'password'
         now = datetime.now()
         # Add a second to be safe.
         now = now + timedelta(seconds=1)
+
         tomorrow = now + timedelta(days=1)
-        print tomorrow.isoformat()
+
         data = {}
         data['question'] = 'Is this a question?'
         data['start_time'] = now.isoformat()
@@ -48,11 +58,31 @@ class eVoteTestCase(unittest.TestCase):
         data['select_min'] = 1
         data['select_max'] = 1
         data['options'] = ['Yes', 'No', 'Abstain']
-        res = self.app.post('/polls', data=json.dumps(data), headers={'Authorization': 'Basic ' + base64.b64encode(username + ":" + password), 'Content-Type': 'application/json'})
-        print res.get_data()
+
+        # Try without authentication.
+        res = self.app.post('/polls', data=json.dumps(data), headers={ 'Content-Type': 'application/json'})
+        assert res.status_code == 401
+
+        # Non-organizer authentication.
+        res = self.app.post('/polls', data=json.dumps(data), headers={'Authorization': 'Basic ' + base64.b64encode(admin + ":" + password), 'Content-Type': 'application/json'})
+        assert res.status_code == 403
+
+        # With authentication.
+        res = self.app.post('/polls', data=json.dumps(data), headers={'Authorization': 'Basic ' + base64.b64encode(organizer + ":" + password), 'Content-Type': 'application/json'})
         assert res.status_code == 201
 
+        res_data = res.get_data()
+        js = json.loads(res_data)
+        poll = js['data']
 
+        # Compare the data.
+        for key in data:
+            if key == 'options':
+                assert len(data['options']) == len(poll['options'])
+                for option in poll['options']:
+                    assert option['option'] in data['options']
+            else:
+                assert poll[key] == data[key]
 
 if __name__ == '__main__':
     try:
