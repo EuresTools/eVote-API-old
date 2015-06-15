@@ -60,7 +60,7 @@ class eVoteTestCase(unittest.TestCase):
         data['options'] = ['Yes', 'No', 'Abstain']
 
         # Try without authentication.
-        res = self.app.post('/polls', data=json.dumps(data), headers={ 'Content-Type': 'application/json'})
+        res = self.app.post('/polls', data=json.dumps(data), headers={'Content-Type': 'application/json'})
         assert res.status_code == 401
 
         # Non-organizer authentication.
@@ -72,8 +72,9 @@ class eVoteTestCase(unittest.TestCase):
         assert res.status_code == 201
 
         res_data = res.get_data()
+        print res_data
         js = json.loads(res_data)
-        poll = js['data']
+        poll = js['data']['poll']
 
         # Compare the data.
         for key in data:
@@ -83,6 +84,37 @@ class eVoteTestCase(unittest.TestCase):
                     assert option['option'] in data['options']
             else:
                 assert poll[key] == data[key]
+
+    def test_create_member(self):
+        data = {}
+        data['name'] = 'Siminn'
+        data['group'] = 'Telekom'
+        data['contacts'] = [{'name': 'Saemi', 'email': 'saemi@siminn.is'}, {'name': 'Thor', 'email': 'thor@siminn.is'}]
+
+        # Try without authentication.
+        res = self.app.post('/members', data=json.dumps(data), headers={'Content-Type': 'application/json'})
+        assert res.status_code == 401
+
+        # Non-organizer authentication.
+        res = self.app.post('/members', data=json.dumps(data), headers={'Authorization': 'Basic ' + base64.b64encode(admin + ":" + password), 'Content-Type': 'application/json'})
+        assert res.status_code == 403
+
+        # With authentication.
+        res = self.app.post('/members', data=json.dumps(data), headers={'Authorization': 'Basic ' + base64.b64encode(organizer + ":" + password), 'Content-Type': 'application/json'})
+        assert res.status_code == 201
+
+        res_data = res.get_data()
+        js = json.loads(res_data)
+        member = js['data']['member']
+
+        # Compare the data.
+        for key in data:
+            if key == 'contacts':
+                assert len(data['contacts']) == len(member['contacts'])
+                for contact in member['contacts']:
+                    assert {'name': contact['name'], 'email': contact['email']} in data['contacts']
+            else:
+                assert member[key] == data[key]
 
 if __name__ == '__main__':
     try:
