@@ -112,7 +112,9 @@ def create_poll():
     for option in poll.options:
         db.session.add(option)
     db.session.commit()
-    return jsonify(status='success', data=poll.to_dict()), 201
+    data = {}
+    data['poll'] = poll.to_dict()
+    return jsonify(status='success', data=data), 201
 
 
 @app.route('/polls/<int:pollId>', methods=['GET', 'PUT', 'DELETE'])
