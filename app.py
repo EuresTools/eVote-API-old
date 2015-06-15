@@ -29,7 +29,7 @@ def make_json_app(import_name):
         else:
             code = 500
 
-        if code in [401, 403, 405]:
+        if code in [401, 403, 405, 415]:
             status = 'fail'
         else:
             status = 'error'
@@ -100,6 +100,8 @@ def create_poll():
     if not organizer:
         abort(403)
     json = request.get_json()
+    if not json:
+        abort(415)
     poll, error = parse_poll(json)
     if error:
         return jsonify(status='fail', data=error), 400
@@ -131,6 +133,8 @@ def pollById(pollId):
 
     elif method == 'PUT':
         json = request.get_json()
+        if not json:
+            abort(415)
         new_poll, error = parse_poll(json)
         if error:
             return jsonify(status='fail', data=error), 400
@@ -208,6 +212,8 @@ def post_votesByPollId(pollId):
         return jsonify(status='fail', message='This poll is currently not open', data=None), 403
 
     json = request.get_json()
+    if not json:
+        abort(415)
     vote, error = parse_vote(json, poll)
     if error:
         return jsonify(status='fail', data=error), 400
@@ -263,6 +269,8 @@ def members():
 
     elif method == 'POST':
         json = request.get_json()
+        if not json:
+            abort(415)
         member, error = parse_member(json)
         if error:
             return jsonify(status='fail', data=error), 400
@@ -294,6 +302,8 @@ def memberById(memberId):
 
     elif method == 'PUT':
         json = request.get_json()
+        if not json:
+            abort(415)
         new_member, error = parse_member(json)
         if error:
             return jsonify(status='fail', data=error)
@@ -344,6 +354,8 @@ def code(pollId):
 
     elif method == 'POST':
         json = request.get_json()
+        if not json:
+            abort(415)
         codes, error = parse_codes(json, poll)
         if error:
             return jsonify(status='fail', data=error), 400
