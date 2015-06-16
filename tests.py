@@ -1,5 +1,6 @@
 import os
 import base64
+import time
 from app import *
 import unittest
 import tempfile
@@ -45,20 +46,7 @@ class eVoteTestCase(unittest.TestCase):
 
 
     def test_create_poll(self):
-        now = datetime.now()
-        # Add a second to be safe.
-        now = now + timedelta(seconds=1)
-
-        tomorrow = now + timedelta(days=1)
-
-        data = {}
-        data['question'] = 'Is this a question?'
-        data['start_time'] = now.isoformat()
-        data['end_time'] = tomorrow.isoformat()
-        data['select_min'] = 1
-        data['select_max'] = 1
-        data['options'] = ['Yes', 'No', 'Abstain']
-
+        data = generate_poll()
         # Try without authentication.
         res = self.app.post('/polls', data=json.dumps(data), headers={'Content-Type': 'application/json'})
         assert res.status_code == 401
@@ -72,8 +60,8 @@ class eVoteTestCase(unittest.TestCase):
         assert res.status_code == 201
 
         res_data = res.get_data()
-        print res_data
         js = json.loads(res_data)
+        assert js['status'] == 'success'
         poll = js['data']['poll']
 
         # Compare the data.
@@ -86,10 +74,7 @@ class eVoteTestCase(unittest.TestCase):
                 assert poll[key] == data[key]
 
     def test_create_member(self):
-        data = {}
-        data['name'] = 'Siminn'
-        data['group'] = 'Telekom'
-        data['contacts'] = [{'name': 'Saemi', 'email': 'saemi@siminn.is'}, {'name': 'Thor', 'email': 'thor@siminn.is'}]
+        data = generate_member()
 
         # Try without authentication.
         res = self.app.post('/members', data=json.dumps(data), headers={'Content-Type': 'application/json'})
@@ -106,6 +91,7 @@ class eVoteTestCase(unittest.TestCase):
         res_data = res.get_data()
         js = json.loads(res_data)
         member = js['data']['member']
+        assert js['status'] == 'success'
 
         # Compare the data.
         for key in data:
@@ -116,7 +102,96 @@ class eVoteTestCase(unittest.TestCase):
             else:
                 assert member[key] == data[key]
 
+    def test_code_and_vote(self):
+        poll = generate_poll()
+        res = self.app.post('/polls', data=json.dumps(poll), headers={'Authorization': 'Basic ' + base64.b64encode(organizer + ":" + password), 'Content-Type': 'application/json'})
+        assert res.status_code == 201
+
+        res_data = res.get_data()
+        js = json.loads(res_data)
+        poll_id = js['data']['poll']['id']
+
+        member = generate_member()
+        res = self.app.post('/members', data=json.dumps(member), headers={'Authorization': 'Basic ' + base64.b64encode(organizer + ":" + password), 'Content-Type': 'application/json'})
+        assert res.status_code == 201
+
+        res_data = res.get_data()
+        js = json.loads(res_data)
+        member_id = js['data']['member']['id']
+
+        data = {}
+        data['member_ids'] = [member_id]
+
+        # Try without authentication
+        res = self.app.post('/polls/%d/codes' % (poll_id), data=json.dumps(data), headers={'Content-Type': 'application/json'})
+        assert res.status_code == 401
+
+        # Non-organizer authentication.
+        res = self.app.post('/polls/%d/codes' % (poll_id), data=json.dumps(data), headers={'Authorization': 'Basic ' + base64.b64encode(admin + ":" + password), 'Content-Type': 'application/json'})
+        assert res.status_code == 403
+
+        # With proper authentication.
+        res = self.app.post('/polls/%d/codes' % (poll_id), data=json.dumps(data), headers={'Authorization': 'Basic ' + base64.b64encode(organizer + ":" + password), 'Content-Type': 'application/json'})
+        assert res.status_code == 201
+
+        res_data = res.get_data()
+        js = json.loads(res_data)
+        code = str(js['data']['codes'][0]['code'])
+
+        # GET the poll via the code.
+        res = self.app.get('/polls?code=%s' % (code))
+        assert res.status_code == 200
+
+        res_data = res.get_data()
+        js = json.loads(res_data)
+        retr_poll_id = js['data']['poll']['id']
+        assert retr_poll_id == poll_id
+
+        option_id = js['data']['poll']['options'][0]['id']
+        vote = {}
+        vote['code'] = code
+        vote['options'] = [option_id]
+
+        # Wait for the poll to open to be able to cast the vote.
+        time.sleep(1)
+        res = self.app.post('/polls/%d/votes' % (poll_id), data=json.dumps(vote), headers={'Content-Type': 'application/json'})
+        assert res.status_code == 201
+
+
+def generate_poll():
+    now = datetime.now()
+    # Add a second to be safe.
+    now = now + timedelta(seconds=1)
+    tomorrow = now + timedelta(days=1)
+
+    poll = {}
+    poll['question'] = random_string(20) + '?'
+    poll['start_time'] = now.isoformat()
+    poll['end_time'] = tomorrow.isoformat()
+    poll['select_min'] = 1
+    poll['select_max'] = 1
+    poll['options'] = ['Yes', 'No', 'Abstain']
+    return poll
+
+def generate_member():
+    member = {}
+    member['name'] = random_string(10)
+    member['group'] = random_string(10)
+    numcontacts = random.randint(1, 5)
+    member['contacts'] = []
+    for i in xrange(0, numcontacts):
+        contact = {}
+        contact['name'] = random_string(10)
+        contact['email'] = random_string(7) + '@example.com'
+        member['contacts'].append(contact)
+    return member
+
+
+def random_string(length):
+    return ''.join(random.SystemRandom().choice(string.ascii_lowercase + string.digits) for _ in range(length))
+
 if __name__ == '__main__':
+    generate_member()
     try:
         unittest.main()
     finally:
