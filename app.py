@@ -31,9 +31,10 @@ def make_json_app(import_name):
 
         if code in [401, 403, 405, 415]:
             status = 'fail'
+            response = jsonify(status=status, data=None)
         else:
             status = 'error'
-        response = jsonify(status=status, message=message)
+            response = jsonify(status=status, data=None,  message=message)
         response.status_code = code
         return response
 
@@ -63,7 +64,7 @@ def index():
 @app.route('/polls', methods=['GET'])
 def get_poll():
     vote_code = request.args.get('code')
-    if not vote_code:
+    if vote_code is None:
         # If no code is specified, check if an organizer is making the request.
         organizer = auth.get_organizer()
         if not organizer:
@@ -80,7 +81,9 @@ def get_poll():
     # Look up the given vote code and use it to retrieve the poll.
     code = Code.query.filter_by(code=vote_code).first()
     if not code:
-        abort(404)
+        data = {}
+        data['code'] = 'Invalid voting code'
+        return jsonify(status='fail', data=data), 404
     # Has the code already been used?
     if code.vote != None:
         data = {}
@@ -218,6 +221,8 @@ def post_votesByPollId(pollId):
         abort(415)
     vote, error = parse_vote(json, poll)
     if error:
+        for key in error:
+            print '%s: %s' % (key, error[key])
         return jsonify(status='fail', data=error), 400
     db.session.add(vote)
     db.session.commit()

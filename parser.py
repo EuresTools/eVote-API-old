@@ -156,10 +156,6 @@ def parse_vote(json, poll):
     if error:
         return None, error
     
-    vote.code = code
-    vote.member = code.member
-    vote.poll = code.poll
-
     try:
         options = json['options']
         if not isinstance(options, list):
@@ -187,6 +183,9 @@ def parse_vote(json, poll):
 
     if error:
         return None, error
+    vote.code = code
+    vote.member = code.member
+    vote.poll = code.poll
     return vote, None
 
 def parse_member(json):
