@@ -43,7 +43,7 @@ print 'Adding users and organizer'
 admin = User('admin', 'password', True)
 db.session.add(admin)
 
-user = User('organizer', 'password')
+user = User('eurescom', 'password')
 db.session.add(user)
 organizer = Organizer('Eurescom')
 organizer.user = user
@@ -63,7 +63,8 @@ db.session.add(member)
 
 print 'Creating voting code'
 code = models.Code()
-code.code = 'a'
+#code.code = 'a'
+code.code = random_string(10)
 code.member = member
 code.poll = poll
 db.session.add(code)

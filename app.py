@@ -261,6 +261,7 @@ def voteById(pollId, voteId):
 @auth.requires_organizer
 # TODO: Test
 def members():
+    print 'Hello'
     method = request.method
     organizer = auth.get_organizer()
     if organizer == None:
