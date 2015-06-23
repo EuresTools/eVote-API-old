@@ -1,12 +1,16 @@
 from app import db
 import json
 from passlib.apps import custom_app_context as password_context
+from datetime import datetime
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), index=True, unique=True)
     password_hash = db.Column(db.String(128))
     is_admin = db.Column(db.Boolean, index=True, default=False)
+
+    created_on = db.Column(db.DateTime, server_default=db.func.now())
+    updated_on = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
 
     # Verify a plaintext password against the saved hash.
     # Returns True if the password matches, False otherwise.
@@ -36,6 +40,9 @@ class Organizer(db.Model):
     members = db.relationship('Member', backref=db.backref('organizer', uselist=False), lazy='dynamic')
     polls = db.relationship('Poll', backref=db.backref('organizer', uselist=False), lazy='dynamic')
 
+    created_on = db.Column(db.DateTime, server_default=db.func.now())
+    updated_on = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
+
     def __init__(self, name):
         self.name = name
 
@@ -58,6 +65,9 @@ class Member(db.Model):
     codes = db.relationship('Code', backref='member', lazy='dynamic')
     votes = db.relationship('Vote', backref='member', lazy='dynamic')
 
+    created_on = db.Column(db.DateTime, server_default=db.func.now())
+    updated_on = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
+
     def __repr__(self):
         return '<Member %r>' % (self.name)
 
@@ -77,6 +87,9 @@ class Contact(db.Model):
     email = db.Column(db.String(80), index=True)
 
     member_id = db.Column(db.Integer, db.ForeignKey('member.id'))
+
+    created_on = db.Column(db.DateTime, server_default=db.func.now())
+    updated_on = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
 
     def __repr__(self):
         return '<Contact %r>' % (self.name)
@@ -101,6 +114,9 @@ class Poll(db.Model):
     codes = db.relationship('Code', backref='poll', lazy='dynamic')
     votes = db.relationship('Vote', backref='poll', lazy='dynamic')
 
+    created_on = db.Column(db.DateTime, server_default=db.func.now())
+    updated_on = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
+
     def __repr__(self):
         return '<Poll %r>' % (self.question)
 
@@ -123,6 +139,9 @@ class Option(db.Model):
     option = db.Column(db.String(120))
     poll_id = db.Column(db.Integer, db.ForeignKey('poll.id'))
 
+    created_on = db.Column(db.DateTime, server_default=db.func.now())
+    updated_on = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
+
     def __init__(self, option):
         self.option = option
 
@@ -143,6 +162,9 @@ class Code(db.Model):
     member_id = db.Column(db.Integer, db.ForeignKey('member.id'))
     vote = db.relationship('Vote', backref='code', uselist=False)
 
+    created_on = db.Column(db.DateTime, server_default=db.func.now())
+    updated_on = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
+
     def __repr__(self):
         return '<Code %r>' % (self.code)
 
@@ -159,6 +181,9 @@ class Vote(db.Model):
     member_id = db.Column(db.Integer, db.ForeignKey('member.id'))
     poll_id = db.Column(db.Integer, db.ForeignKey('poll.id'))
     options = db.relationship('Option', secondary='vote_option', backref=db.backref('votes', lazy='dynamic'))
+
+    created_on = db.Column(db.DateTime, server_default=db.func.now())
+    updated_on = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
 
     def to_dict(self):
         data = {}
