@@ -1,6 +1,7 @@
 #!flask/bin/python
 from flask import Flask, jsonify, request, json, abort
 from flask.ext.sqlalchemy import SQLAlchemy
+from sqlalchemy.exc import IntegrityError
 from werkzeug.exceptions import default_exceptions
 from werkzeug.exceptions import HTTPException
 from datetime import datetime
@@ -52,6 +53,7 @@ db = SQLAlchemy(app)
 from models import *
 from parser import *
 import auth
+import xlprsr
 
 @app.route('/')
 @auth.requires_admin
@@ -261,7 +263,6 @@ def voteById(pollId, voteId):
 @auth.requires_organizer
 # TODO: Test
 def members():
-    print 'Hello'
     method = request.method
     organizer = auth.get_organizer()
     if organizer == None:
@@ -276,19 +277,40 @@ def members():
         return jsonify(status='success', data=data)
 
     elif method == 'POST':
-        json = request.get_json()
-        if not json:
-            abort(415)
-        member, error = parse_member(json)
-        if error:
-            return jsonify(status='fail', data=error), 400
-        # Attach organizer and save.
-        member.organizer = organizer
-        db.session.add(member)
-        db.session.commit()
-        data = {}
-        data['member'] = member.to_dict()
-        return jsonify(status='success', data=data), 201
+        # Parse the members from an excel file if a file is specified.
+        if 'excel_file' in request.files:
+            file = request.files['excel_file']
+            update = False
+            if 'update' in request
+            error = {}
+            if not file or not allowed_file(file.filename):
+                error['excel_file'] = 'A .xls or .xlsx file is required'
+                return jsonify(status='fail', data=error), 400
+            members = xlprsr.parse_file(file)
+            try:
+                for member in members:
+                    member.organizer = organizer
+                    db.session.add(member)
+                db.session.commit()
+            except IntegrityError, e:
+                error['excel_file'] = 'One or more members already exist in the database'
+                return jsonify(status='fail', data=errar), 400
+                raise e
+        else:
+            json = request.get_json()
+            if not json:
+                abort(415)
+            member, error = parse_member(json)
+            if error:
+                return jsonify(status='fail', data=error), 400
+            # Attach organizer and save.
+            member.organizer = organizer
+            db.session.add(member)
+            db.session.commit()
+            data = {}
+            data['member'] = member.to_dict()
+            return jsonify(status='success', data=data), 201
+
 
 
 @app.route('/members/<int:memberId>', methods=['GET', 'PUT', 'DELETE'])
@@ -384,6 +406,10 @@ def code(pollId):
             data['codes'].append(code.to_dict())
         return jsonify(status='success', data=data), 201
 
+
+def allowed_file(filename):
+    allowed_extensions = ['xls', 'xlsx']
+    return '.' in filename and filename.rsplit('.', 1)[1] in allowed_extensions
 
 if __name__ == '__main__':
     db.create_all()
